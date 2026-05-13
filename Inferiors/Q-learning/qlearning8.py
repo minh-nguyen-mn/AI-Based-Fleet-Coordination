@@ -18,10 +18,11 @@ class TabularFleetLearner:
         
     def get_state(self, vehicle, tasks, idle_pos, current_time):
         """
-        Discretized State Space (72 states total):
+        Discretized State Space (144 states):
         - Grid (9)
         - Demand High/Low (2)
         - Supply High/Low (2)
+        - Idle Time High/Low (2)
         - Phase Early/Late (2)
         """
         v_pos = vehicle['Vehicle Position (x, y)']
@@ -29,22 +30,27 @@ class TabularFleetLearner:
         gy = int(min(2, max(0, v_pos[1] // 167)))
         grid = gx * 3 + gy
         
-        radius = 150.0
+        radius = 160.0 # Slightly larger radius for awareness
         demand = sum(1 for t in tasks if np.sqrt((v_pos[0]-t[0])**2 + (v_pos[1]-t[1])**2) < radius)
-        demand_bin = 1 if demand > 1 else 0
+        demand_bin = 1 if demand > 0 else 0
         
         supply = sum(1 for p in idle_pos if np.sqrt((v_pos[0]-p[0])**2 + (v_pos[1]-p[1])**2) < radius)
-        supply_bin = 1 if supply > 2 else 0
+        supply_bin = 1 if supply > 1 else 0
+        
+        # Idle Time Bin: Crucial for reducing stagnation
+        idle_time = vehicle.get('Idle Time', 0)
+        idle_bin = 1 if idle_time > 15 else 0
         
         phase = 1 if current_time > 300 else 0
         
-        return (grid, demand_bin, supply_bin, phase)
+        return (grid, demand_bin, supply_bin, idle_bin, phase)
 
     def get_q(self, state, action):
-        return self.q_table.get((state, action), 0.0)
+        return self.q_table.get((state, action), 0.5) # Optimistic Initialization
 
     def select_action(self, state):
         qs = [self.get_q(state, a) for a in range(4)]
+        # Boltzmann Selection with cooling
         exp_qs = np.exp((np.array(qs) - np.max(qs)) / self.temp)
         probs = exp_qs / exp_qs.sum()
         return np.random.choice(4, p=probs)
@@ -103,13 +109,14 @@ def qlearning_allocation(vehicles_df, tasks_df, current_time=0):
             if action == 1: # EFFICIENCY: Maximize work density
                 score = t['Duration (min)'] / (tt + 0.1)
             elif action == 2: # URGENCY: Prioritize critical
-                score = t['Urgency'] * 2.0 - tt
-            elif action == 3: # POSITIONING: Focus on task-dense areas
-                rad = 180.0
+                score = t['Urgency'] * 2.5 - tt
+            elif action == 3: # POSITIONING: Focus on future high-demand zones
+                rad = 200.0
                 loc_dens = sum(1 for t2 in task_pos if np.sqrt((t['Task Position (x, y)'][0]-t2[0])**2 + (t['Task Position (x, y)'][1]-t2[1])**2) < rad)
-                score = loc_dens * 5.0 - tt
-            else: # Action 0: WAIT/STAY (if score > threshold else neutral)
-                score = 0
+                # Bias towards regions with many tasks but few vehicles
+                score = loc_dens * 4.0 - tt
+            else: # Action 0: WAIT (Neutral)
+                score = -100 # Discourage wait if tasks are available
             
             scored.append((score, t, tt, tot))
 
@@ -118,12 +125,19 @@ def qlearning_allocation(vehicles_df, tasks_df, current_time=0):
             scored.sort(key=lambda x: x[0], reverse=True)
             _, best_t, b_tt, b_tot = scored[0]
             
-            # Reward: Thru (1.0) + Efficiency (0.5) + Urgency (0.3)
-            reward = 1.0 + (best_t['Duration (min)'] / b_tot) + (best_t['Urgency'] / 10.0) - (b_tt / 20.0)
+            # Reward Design: 
+            # Focus on Work done + Speed of response + Recovery from long idleness
+            productivity = best_t['Duration (min)'] / b_tot
+            urgency_score = best_t['Urgency'] / 8.0
+            idleness_recovery = 1.0 if state[3] == 1 else 0.0 # Reward taking task after long idle
+            
+            reward = 1.5 * productivity + urgency_score + idleness_recovery - (b_tt / 15.0)
             
             # Post-state estimation
             next_v = vehicle.copy()
             next_v['Vehicle Position (x, y)'] = best_t['Task Position (x, y)']
+            # Approximate next idle time as 0 after finishing task
+            next_v['Idle Time'] = 0
             next_state = _fleet_agent.get_state(next_v, task_pos, idle_pos, current_time)
             
             _fleet_agent.push(state, action, reward, next_state)
@@ -133,6 +147,7 @@ def qlearning_allocation(vehicles_df, tasks_df, current_time=0):
             vehicles_df.at[v_idx, 'Busy'] = True
             vehicles_df.at[v_idx, 'Remaining Duration'] = float(b_tot)
             vehicles_df.at[v_idx, 'Vehicle Position (x, y)'] = best_t['Task Position (x, y)']
+            vehicles_df.at[v_idx, 'Idle Time'] = 0 # Reset idle time
             
             assigned_tasks.add(best_t['Task ID'])
             engagement_details.append({
@@ -141,12 +156,18 @@ def qlearning_allocation(vehicles_df, tasks_df, current_time=0):
                 "normalized_engagement_time": b_tot / best_t['Duration (min)'], "energy_consumed": b_tot
             })
         else:
-            # Action 0 or no candidate: Idle penalty if demand exists
-            # Moderate penalty to discourage idling when tasks are nearby
-            reward = -1.0 if state[1] == 1 else -0.05
-            _fleet_agent.push(state, 0, reward, state)
+            # Action 0 or no candidate: Idle penalty
+            # Penalty increases with duration of idleness and local demand
+            idle_duration = vehicle.get('Idle Time', 0)
+            penalty = -0.5 - (0.05 * idle_duration)
+            if state[1] == 1: # High local demand
+                penalty -= 2.0
+            
+            _fleet_agent.push(state, 0, penalty, state)
 
     # Batch learning step
     _fleet_agent.train_batch()
+    # Gradual cooling
+    _fleet_agent.temp = max(0.05, _fleet_agent.temp * 0.999)
     
     return allocations, engagement_details
