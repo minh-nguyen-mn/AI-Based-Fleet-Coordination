@@ -1,98 +1,190 @@
-# AI-Based-Fleet-Coordination
+# AI-Based Fleet Coordination
 
-pages 3
-===PAGE 1 ===
- AI-Based Fleet Coordination � Practical
-Implementation Task
-Dr Maria Chli, Dr Farzaneh Farhadi
-Deadline: Monday 15 May, 5pm UK time
-Objective
-This task assesses your ability to design and implement basicdecentralised task allocation strategies
-for autonomous baggage vehicles. The implementation requirements include:
-1. Implementation of auction and/or Q-Learning fleet coordination algorithms in Python
-2. Use of provided baseline code for environment setup and greedy allocation algorithm
-3. Performance evaluation based on task completion time and energy use minimisation
-4. Critical analysis of the strengths and limitations of your approaches
-Problem Description
-You are tasked with designing and implementing algorithms for assigning a fleet of autonomous vehicles
-to tasks in a dynamic environment. The goal is to allocate vehicles efficiently to tasks while minimising
-total time and energy consumption.
-� Each vehicle has a position, a speed, and a battery level.
-� Tasks arrive dynamically with a location, urgency level, and duration.
-� Your implementation must include one or both of:
-� Auction-based allocation : Assign tasks to vehicles using an auction mechanism.
-� Q-Learning allocation : Implement a reinforcement learning approach to optimise task
-allocation over time.
-� You will compare your solutions against a provided greedy allocation strategy.
-Provided Code
-You are given:
-1. Data generation: Code to create random vehicle and task data.
-2. Greedy allocation: A baseline method that assigns tasks to the closest available vehicle.
-3. Skeleton comparison code : Functions to integrate and compare your allocation algorithm im-
-plementations.
-1
-===PAGE 2 ===
- Tasks
-1. Implement an Auction-based Allocation Strategy (25 marks)
-� Implement vehicle bidding using an appropriate bidding function
-� Assign tasks to highest
-� Your bidding function should consider at least:
-� distance or travel time,
-� battery feasibility,
-� task urgency
-� Briefly justify:
-� why your bidding function was designed this way,
-� what information each vehicle is allowed to access,
-� and whether your method is fully decentralised or centrally coordinated with decentralised
-bidding
-2. Implement a Q-Learning Allocation Strategy (35 marks)
-� Consider appropriate state space discretisation
-� Q-table implementation and training to optimise vehicle-task assignment decisions.
-� Clearly define and justify:
-� state representation,
-� action space,
-� reward function,
-� and exploration strategy
-� Explain what behavioural patterns the learned policy appears to learn
-� Briefly discuss one limitation of tabular Q-learning for this problem
-3. Performance Comparison (20 marks)
-� Run experiments comparing Greedy/Auction/Q-Learning allocation
-� Metrics: Total time, energy consumption, task completion
-� Document these in a short (2-5 page) report covering:
-� Implementation approaches
-� Challenges faced
-� Performance reporting and observations
-4. Critical Reflection (10 marks)
-� Discuss one scenario in your report where:
-� greedy allocation performs poorly,
-� your auction method performs poorly,
-� and your Q-learning method performs poorly
-� Explain:
-� what assumptions your methods make, and
-� what information is globally shared vs locally available
-5. Ensure Code Quality (10 marks)
-� Readable, appropriate structure and documentation
-� Comments and explanations
-� Clear instructions for running experiments
-6. Extension Task (20 bonus marks)
-2
-===PAGE 3 ===
- � Optional improvements:
-� Dynamic battery recharge
-� Vehicle prioritisation
-� Delay handling
-7. Submit Task
-� Email your Python scripts and short report (2-5 pages) as a zip attachment, following the
-naming convention SurnameFirstName.zip, to f.farhadi@aston.ac.uk
-Tools & Libraries
-Recommended stack:
-� Python 3.x
-� Pandas (for handling dataset)
-� NumPy (for calculations)
-� Matplotlib (for basic visualisation)
-Expected Time to Complete
-You are expected to spend at most 8 hours on this task:
-� 1 hour � Understanding given code and planning your approach
-� 4 hours � Algorithm implementation
-� 3 hours � Testing, analysis and reporting
-3
+This project implements and evaluates multiple AI-based task allocation strategies for autonomous fleet coordination in dynamic environments.
+
+Implemented approaches:
+
+- Greedy nearest-vehicle allocation
+- Auction-based decentralised bidding allocation
+- Tabular Q-learning allocation
+
+The project evaluates coordination efficiency under dynamically arriving tasks using reproducible experiments and detailed performance logging.
+
+---
+
+# Project Structure
+
+| File | Description |
+|---|---|
+| `DataGenerationDynamic.py` | Dynamic environment and task generation |
+| `fleet_greedy_allocationDynamic.py` | Greedy baseline allocation algorithm |
+| `fleet_auction_allocationDynamic.py` | Auction-based allocation implementation |
+| `fleet_qlearning_allocationDynamic.py` | Tabular Q-learning allocation implementation |
+| `fleet_ComparisonDynamicGiven.py` | Main experiment runner and comparison script |
+| `reproducibility_utils.py` | Global seed control and reproducibility utilities |
+| `aggregate_summary.csv` | Aggregated metrics across all experiment runs |
+| `comparison_metrics.png` | Average performance comparison plots |
+| `comparison_distributions.png` | Distribution visualisations across runs |
+| `comparison_trends.png` | Trend analysis visualisations |
+| `Report_AI_Based_Fleet_Coordination.pdf` | Final report |
+| `requirements.txt` | Required Python packages |
+
+---
+
+# Implemented Methods
+
+## 1. Greedy Allocation
+
+The greedy baseline assigns each task to the nearest available vehicle with sufficient battery capacity.
+
+Characteristics:
+- Fully local decision-making
+- Distance-based assignment
+- No global optimisation
+- Low computational complexity
+
+---
+
+## 2. Auction-Based Allocation
+
+Vehicles independently compute bids for tasks using:
+- travel time,
+- task urgency,
+- nearby future demand,
+- nearby idle vehicles,
+- and vehicle idle time.
+
+The system uses:
+- decentralised local bid computation,
+- followed by centralised greedy bid clearing.
+
+The method is therefore a hybrid decentralised-centralised allocation mechanism.
+
+---
+
+## 3. Q-Learning Allocation
+
+A shared tabular Q-learning policy is used across vehicles.
+
+The implementation includes:
+- discretised environment states,
+- multiple allocation strategies as actions,
+- Boltzmann (softmax) exploration,
+- experience replay,
+- and reward shaping based on efficiency and urgency.
+
+The learned policy attempts to balance:
+- efficiency,
+- urgency handling,
+- spatial clustering,
+- and reduced idle behaviour.
+
+---
+
+# Experimental Setup
+
+The system evaluates all methods under identical dynamically generated environments.
+
+Key experiment properties:
+- Dynamic task arrivals
+- Multiple autonomous vehicles
+- Battery-constrained assignments
+- Repeated stochastic simulations
+- Fully reproducible seeded execution
+
+The comparison is performed over:
+- 1000 independent runs
+
+---
+
+# Performance Metrics
+
+The following metrics are evaluated:
+
+- Tasks completed
+- Tasks not serviced
+- Throughput
+- Engagement time
+- Energy per unit workload
+- Idle time
+- Normalised engagement
+
+Energy consumption is approximated using total engagement time.
+
+Throughput is defined as:
+- the sum of serviced task durations.
+
+---
+
+# Reproducibility
+
+The project includes deterministic seed control through:
+
+- NumPy seed management
+- Python random seed management
+- Fixed experiment configuration
+
+This ensures:
+- reproducible results across reruns,
+- stable benchmarking,
+- and consistent metric outputs.
+
+---
+
+# Running the Experiments
+
+## 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Run the comparison experiments
+```bash
+python fleet_ComparisonDynamicGiven.py
+```
+
+This will:
+
+- run all allocation methods,
+- execute repeated simulations,
+- generate comparison figures,
+- and produce aggregated CSV summaries.
+
+---
+
+# Output Files
+
+Running the experiments generates:
+
+| Output | Description |
+|---|---|
+| `aggregate_summary.csv` |	Aggregated experiment metrics |
+| `comparison_metrics.png` | Average metric comparison plots |
+| `comparison_distributions.png` | Metric distribution visualisations |
+| `comparison_trends.png` | Metric trend plots |
+
+---
+
+# Key Findings
+
+Observed results show:
+
+- Auction-based allocation achieves the best overall throughput and efficiency.
+- Q-learning improves adaptability but is limited by tabular discretisation.
+- Greedy allocation performs worst under clustered dynamic task distributions.
+
+---
+
+# Additional Notes
+
+The submitted folder contains:
+
+- source code,
+- experiment outputs,
+- generated figures,
+- and the final report.
+
+For a more comprehensive and continuously updated version of the implementation, including additional experiment details and repository history, see:
+
+https://github.com/minh-nguyen-mn/AI-Based-Fleet-Coordination
