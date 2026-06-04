@@ -20,7 +20,7 @@ The project evaluates coordination efficiency under dynamically arriving tasks u
 | `fleet_greedy_allocationDynamic.py` | Greedy baseline allocation algorithm |
 | `fleet_auction_allocationDynamic.py` | Auction-based allocation implementation |
 | `fleet_qlearning_allocationDynamic.py` | Tabular Q-learning allocation implementation |
-| `fleet_ComparisonDynamicGiven.py` | Main experiment runner and comparison script |
+| `fleet_Comparison.py` | Main experiment runner and comparison script |
 | `reproducibility_utils.py` | Global seed control and reproducibility utilities |
 | `aggregate_summary.csv` | Aggregated metrics across all experiment runs |
 | `comparison_metrics.png` | Average performance comparison plots |
@@ -141,7 +141,7 @@ pip install -r requirements.txt
 
 ### 2. Run the comparison experiments
 ```bash
-python fleet_ComparisonDynamicGiven.py
+python fleet_Comparison.py
 ```
 
 This will:
